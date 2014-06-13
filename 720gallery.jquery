@@ -1,0 +1,194 @@
+/**
+* Slider markup
+<div id="galeria">
+	<div class="image-big"></div>
+	<div class="images">
+		<ul>
+			<li>
+				<a target="_self" href="images/image-propiedad1-b.jpg" title="Gallery 1">
+					<img title="Haz click para ampliar" alt="Thumb" src="images/image-propiedad1-s.jpg">
+				</a>
+			</li>
+			...
+			<li>
+				<a target="_self" href="images/image-propiedad5-b.jpg" title="Gallery 5" >
+					<img title="Haz click para ampliar" alt="Thumb" src="images/image-propiedad5-s.jpg">
+				</a>
+			</li>
+		</ul>
+	</div>
+</div>
+*
+*/
+
+var sliderGallery = function( i_parameters ){
+	var $elem = this;
+
+	this.o_parameters = $.extend({
+		"main_container"     : "",
+		"big_container"      : "",
+		"selector"           : "",
+		"big_image_width"    : "",
+		"big_image_height"   : ""
+	}, i_parameters );
+
+	this.resize_timer = 0;
+
+	//objects
+	var BigImageClass = function(){
+		var s_source;
+		var s_title;
+		var i_height;
+	}; 
+
+	//get all the images I need to place in the gallery
+	var a_slides = new Array();
+	$(this.o_parameters.selector).each(function(){
+		var o_bigimage      = new BigImageClass();
+		o_bigimage.s_source = $(this).attr("href");
+		o_bigimage.s_title  = $(this).attr("title");
+		a_slides.push( o_bigimage );
+	});
+	this.a_slides = a_slides;
+
+	//current slider
+	this.slider_current_idx = 0;
+
+	this.create_layout = function(){
+		
+		//static attributes
+		var o_parameters = this.o_parameters;
+		var a_slides = this.a_slides;
+		var s_big_gallery_html = '\
+			<a class="left carousel-control" href="#" data-slide="prev">\
+				<span class="glyphicon glyphicon-chevron-left"></span>\
+			</a>\
+			<a class="right carousel-control" href="#" data-slide="next">\
+				<span class="glyphicon glyphicon-chevron-right"></span>\
+			</a>\
+			<div class="roller-cont">\
+				<div class="roller"></div>\
+			</div>';
+		
+		//width and height calculated from the width container that is the one responsive
+		//we have basic width and height, and all the calculations are done from there
+		var WIDTH  = $(o_parameters.big_container).width();
+		var HEIGHT = o_parameters.big_image_height * (WIDTH/o_parameters.big_image_width);
+		
+		//set up the big images
+		$(o_parameters.big_container).css("display","none");
+		$(o_parameters.big_container).html(s_big_gallery_html);
+		for(var i=0; i<a_slides.length; i++){
+			var o_slide = a_slides[ i ];
+
+			var dom_elem = $('<div class="roller_single">\
+							 	<img style="margin-top:0px;" \
+								title = "'+ o_slide.s_title +'" \
+								alt = "'+ o_slide.s_title +'" \
+								src = "'+ o_slide.s_source +'">\
+							</div>')
+							.css({
+								"float" : "left",
+								"width" : WIDTH + "px",
+								"height": HEIGHT + "px" 
+							});
+
+			$(o_parameters.big_container)
+			.find('.roller')
+			.append(dom_elem);
+		}
+
+		$(o_parameters.big_container)
+		.find('.roller')
+		.css({
+			"height"   : HEIGHT + "px",
+			"width"    : ( WIDTH * a_slides.length ) + "px",
+			"position" : "absolute",
+			"top"      : 0,
+			"left"     : 0,
+			"z-index"  : 99,
+		});
+
+		$(o_parameters.big_container)
+		.find('.roller-cont')
+		.css({
+			"height"   : HEIGHT + "px",
+			"width"    : WIDTH + "px",
+			"position" : "relative",
+			"overflow" : "hidden"
+		});
+		
+		//movement
+		$(this.o_parameters.big_container).find('.left,.right').css({"z-index":"999999"});
+		$(this.o_parameters.big_container).find('.left').click(function(e){
+			e.preventDefault();
+			$elem.move("left");
+		});
+		$(this.o_parameters.big_container).find('.right').click(function(e){
+			e.preventDefault();
+			$elem.move("right");
+		});
+		$(this.o_parameters.selector).click(function(e){
+			e.preventDefault();
+			var i_idx = $($elem.o_parameters.selector).index($(this));
+			var i_move = $elem.slider_current_idx - i_idx;
+			if( i_move < 0 ){
+				$elem.move("right", i_move*-1);
+			} else if( i_move > 0 ) {
+				$elem.move("left", i_move);
+			}
+		});
+
+		//show the slider
+		var old_idx = this.slider_current_idx;
+		this.slider_current_idx = 0;
+		this.move( "right", old_idx, 0 );
+		$(o_parameters.big_container).css("display","block");
+	}
+
+	this.move = function( direction, positions, animation_speed ){
+		if(typeof positions=="undefined"){
+			positions = 1;
+		}
+		if(typeof animation_speed=="undefined"){
+			animation_speed = 400;
+		}
+			
+		var i_direccion = 1;
+		if(direction=="left"){
+			if( this.slider_current_idx <= 0 ){
+				return;
+			}
+			this.slider_current_idx -= positions;
+		} 
+		else if(direction=="right") {
+			i_direccion = -1;
+			if( this.slider_current_idx+1 >= this.a_slides.length ){
+				return;
+			}
+			this.slider_current_idx += positions;
+		} 
+		else {
+			return;
+		}
+		
+		var left = parseInt( $(this.o_parameters.big_container).find(".roller").css("left") );
+		left += $(this.o_parameters.big_container).find(".roller_single").width() * positions * i_direccion;
+		$(this.o_parameters.big_container).find(".roller").animate({'left': left + "px"}, animation_speed);
+	}
+
+	this.resize = function(){
+		clearTimeout($elem.resize_timer);
+		$elem.resize_timer = setTimeout(function(){
+			$elem.create_layout();
+		}, 500);
+	};
+
+	this.create_layout();
+
+	$(window).resize(function(){
+		$elem.resize();
+	});
+
+	return this;
+}
